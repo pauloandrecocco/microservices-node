@@ -1,3 +1,5 @@
+import "@opentelemetry/auto-instrumentations-node/register";
+
 import "../broker/subscriber.ts"; // Instanciar assim que iniciar o servidor HTTP de invoices
 
 import { fastify } from "fastify";
