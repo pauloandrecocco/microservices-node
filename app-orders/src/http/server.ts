@@ -10,6 +10,7 @@ import { channels } from "../broker/channels/index.ts";
 import { db } from "../db/client.ts";
 import { schema } from "../db/schema/index.ts";
 import { randomUUID } from "node:crypto";
+import { dispatchOrderCreated } from "../broker/messages/order-createad.ts";
 
 const app = fastify().withTypeProvider<ZodTypeProvider>();
 
@@ -38,14 +39,20 @@ app.post(
 
     console.log(`[Orders] Creating an order with amount ${amount}.`);
 
-    channels.orders.sendToQueue(
-      "orders",
-      Buffer.from(JSON.stringify({ amount }))
-    );
+    const orderId = randomUUID();
+    const customerId = "B9176D35-7276-4255-A323-D825CAEE03B5"; // TODO: usar id real do customer, peguei esse de um customer de teste do banco
+
+    dispatchOrderCreated({
+      orderId,
+      amount,
+      customer: {
+        id: customerId,
+      },
+    });
 
     await db.insert(schema.orders).values({
-      id: randomUUID(),
-      customerId: "B9176D35-7276-4255-A323-D825CAEE03B5", // TODO: usar id real do customer, peguei esse de um customer de teste do banco
+      id: orderId,
+      customerId,
       amount,
     });
 
