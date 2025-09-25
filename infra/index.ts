@@ -1,45 +1,10 @@
 import * as pulumi from "@pulumi/pulumi";
-import * as aws from "@pulumi/aws";
-import * as awsx from "@pulumi/awsx";
-import * as docker from "@pulumi/docker-build";
 
-const ordersECRRepository = new awsx.ecr.Repository("orders-ecr", {
-  forceDelete: true,
-});
+import { appLoadBalancer } from "./src/load-balancer";
+import { ordersService } from "./src/services/orders";
+import { rabbitMQService } from "./src/services/rabbitmq";
 
-const ordersECRToken = aws.ecr.getAuthorizationTokenOutput({
-  registryId: ordersECRRepository.repository.registryId,
-});
-
-export const ordersDockerImage = new docker.Image("orders-image", {
-  tags: [
-    pulumi.interpolate`${ordersECRRepository.repository.repositoryUrl}:latest`,
-  ], // Para controlar versões das imagens
-  context: {
-    location: "../app-orders", // Onde está o docker file
-  },
-  push: true, // Fazer o build da imagem e jogar para dentro do repositório
-  platforms: ["linux/amd64"], // Para quais plataformas será criada a imagem
-  registries: [
-    {
-      address: ordersECRRepository.repository.repositoryUrl, // Joga a imagem nesse endereço
-      username: ordersECRToken.userName,
-      password: ordersECRToken.password,
-    },
-  ],
-});
-
-const cluster = new awsx.classic.ecs.Cluster("app-cluster"); // Cluster: Agrupamento de vários serviços que pertencem a uma mesma aplicação
-
-const ordersService = new awsx.classic.ecs.FargateService("fargate-orders", {
-  cluster,
-  desiredCount: 1,
-  waitForSteadyState: false,
-  taskDefinitionArgs: {
-    container: {
-      image: ordersDockerImage.ref,
-      cpu: 256,
-      memory: 512,
-    },
-  },
-});
+// Só exportando para ficar como log quando fazer um 'pulumi up'
+export const ordersId = ordersService.service.id;
+export const rabbitMQId = rabbitMQService.service.id;
+export const rabbitMQAdminUrl = pulumi.interpolate`http://${appLoadBalancer.listeners[0].endpoint.hostname}:15672`;
